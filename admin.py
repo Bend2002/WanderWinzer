@@ -25,26 +25,39 @@ def init_tables():
 
 def import_excel():
     df = pd.read_excel(EXCEL_FILE)
-    df.columns = [c.strip().lower().replace(" ", "_").replace("€","euro").replace("%","prozent") for c in df.columns]
+
+    # Spaltennamen auf sichere SQL-Namen trimmen
+    df.columns = [c.strip().lower()
+                    .replace(" ", "_")
+                    .replace("€", "euro")
+                    .replace("%", "prozent")
+                  for c in df.columns]
+
+    # Laufende Nummer als id (1-basiert)
+    df.insert(0, "id", range(1, len(df) + 1))
+
+    # Liste erlaubter Spalten in stations
+    allowed = {"id", "name", "weinname", "bild", "jahrgang",
+               "herkunftsland", "rebsorte", "preis_euro",
+               "alkohol_prozent"}
+
+    # Fehlende erlaubte Spalten ergänzen (leerer String)
+    for col in allowed - set(df.columns):
+        df[col] = ""
+
+    # Nur erlaubte Spalten behalten
+    df = df[[c for c in df.columns if c in allowed]]
+
+    # Umbenennen: weinname → name  (DB-Spalte)
+    if "weinname" in df.columns:
+        df.rename(columns={"weinname": "name"}, inplace=True)
 
     conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM stations")  # clean slate
-    for _, row in df.iterrows():
-        conn.execute("""
-            INSERT INTO stations 
-            (id,name,bild,jahrgang,herkunftsland,rebsorte,preis_euro,alkohol_prozent,revealed)
-            VALUES (?,?,?,?,?,?,?,?,0)
-        """, (
-            int(row["nr"]),
-            row["weinname"],
-            row.get("bild",""),
-            row.get("jahrgang",""),
-            row.get("herkunftsland",""),
-            row.get("rebsorte",""),
-            row.get("preis_euro",""),
-            row.get("alkohol_prozent","")
-        ))
-    conn.commit(); conn.close()
+    conn.execute("DELETE FROM stations")
+    df["revealed"] = 0             # neue Spalte
+
+    df.to_sql("stations", conn, if_exists="append", index=False)
+    conn.close()
 
 def get_stations():
     conn = sqlite3.connect(DB_NAME)
