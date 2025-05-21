@@ -1,9 +1,21 @@
-# station.py – Bewertungsformular für aktuelle Station
-import streamlit as st
+# station.py – Bewertungsmodul
 import sqlite3
 import os
+import streamlit as st
 
 DB_NAME = os.path.join(os.getcwd(), "wander.db")
+
+# Tabelle 'stations' automatisch erstellen, falls sie fehlt
+conn = sqlite3.connect(DB_NAME)
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS stations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        revealed INTEGER DEFAULT 0
+    )
+""")
+conn.commit()
+conn.close()
 
 def get_current_station():
     conn = sqlite3.connect(DB_NAME)
