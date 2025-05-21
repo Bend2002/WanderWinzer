@@ -71,7 +71,7 @@ def admin_page():
         if st.button("📥 Excel importieren"):
             import_excel()
             st.success("Excel erfolgreich importiert.")
-            st.experimental_rerun()
+            st.rerun()    
 
     st.divider()
     st.subheader("📋 Stationen")
@@ -81,4 +81,4 @@ def admin_page():
         col1.write(f"**#{sid} – {name}**  {'✅' if rev else '❌'}")
         if not rev and col2.button("Freigeben", key=f"rel{sid}"):
             reveal(sid)
-            st.experimental_rerun()
+            st.rerun()    
