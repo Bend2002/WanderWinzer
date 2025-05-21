@@ -1,17 +1,17 @@
-# main.py – stabiler Einstieg mit Login, Team-Check, Fehlerbehandlung
+# main.py – Zentrale Navigation (Login → Team → Station / Admin)
 import streamlit as st
 import os
 import sqlite3
 
-from auth import auth_page
-from team import team_page
-from station import station_page
-from admin import admin_page
+from auth import auth_page          # Login / Registrierung
+from team import team_page          # Teamwahl
+from station import station_page    # Bewertung
+from admin import admin_page        # Admin-Panel
 
 st.set_page_config(page_title="Weinwanderung", page_icon="🍇", layout="centered")
 
 DB_NAME = os.path.join(os.getcwd(), "wander.db")
-# Sicherheits-Setup bei frischer App
+# Tabelle users immer sicher anlegen
 conn = sqlite3.connect(DB_NAME)
 conn.execute(
     """
@@ -27,22 +27,23 @@ conn.close()
 
 # Persistenter Login über ?user=
 if "user" not in st.session_state:
-    params = st.query_params
-    if "user" in params:
-        st.session_state["user"] = params["user"]
+    qp = st.query_params
+    if "user" in qp:
+        st.session_state["user"] = qp["user"]
 
+# ──────────────────────────────
 # Routing
+# ──────────────────────────────
 if "user" not in st.session_state:
-    auth_page()
+    auth_page()  # Login / Registrierung
 else:
+    # Team aus DB holen
     conn = sqlite3.connect(DB_NAME)
-    row = conn.execute(
-        "SELECT team FROM users WHERE username = ?", (st.session_state["user"],)
-    ).fetchone()
+    row = conn.execute("SELECT team FROM users WHERE username = ?", (st.session_state["user"],)).fetchone()
     conn.close()
 
-    # Wenn der User nicht mehr existiert (z. B. nach DB-Reset)
     if not row:
+        # User existiert nicht mehr → Session reset
         del st.session_state["user"]
         st.query_params.pop("user", None)
         st.rerun()
@@ -50,11 +51,11 @@ else:
     team = row[0]
 
     if not team:
-        team_page()
+        team_page()  # Nutzer muss Team wählen / anlegen
     else:
-        st.sidebar.success(f"Eingeloggt als {st.session_state['user']}  |  Team: {team}")
+        st.sidebar.success(f"Eingeloggt als {st.session_state['user']} 🟢 Team: {team}")
 
-        if team == "admin":
+        if team.lower() == "admin":
             admin_page()
         else:
             station_page()
