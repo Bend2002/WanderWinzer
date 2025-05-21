@@ -49,4 +49,4 @@ else:
     if st.sidebar.button("Logout"):
         del st.session_state["user"]
         st.query_params.pop("user", None)
-        st.experimental_rerun()
+        st.rerun()
