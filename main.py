@@ -24,7 +24,6 @@ conn.execute(
 conn.commit()
 conn.close()
 
-
 # Persistenter Login über ?user=
 if "user" not in st.session_state:
     params = st.query_params
@@ -53,7 +52,8 @@ else:
         team_page()
     else:
         st.sidebar.success(f"Eingeloggt als {st.session_state['user']}  |  Team: {team}")
-       station_page()
+        station_page()
+
         if st.sidebar.button("Logout"):
             del st.session_state["user"]
             st.query_params.pop("user", None)
