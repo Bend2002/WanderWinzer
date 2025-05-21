@@ -77,6 +77,7 @@ def auth_page():
             if login_user(username, password):
                 st.session_state["user"] = username               # in Session
                 st.query_params["user"] = username                # in URL
-                st.experimental_rerun()
+                st.rerun()
+
             else:
                 st.error("Login fehlgeschlagen.")
