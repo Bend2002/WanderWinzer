@@ -5,6 +5,7 @@ import sqlite3
 
 from auth import auth_page
 from team import team_page
+from station import station_page
 
 st.set_page_config(page_title="Weinwanderung", page_icon="🍇", layout="centered")
 
@@ -52,9 +53,7 @@ else:
         team_page()
     else:
         st.sidebar.success(f"Eingeloggt als {st.session_state['user']}  |  Team: {team}")
-        st.title("🍷 Weinwander-App (in Entwicklung)")
-        st.info("Hier kommt bald die Wein-Bewertung. Genieße solange einen Schluck!")
-
+       station_page()
         if st.sidebar.button("Logout"):
             del st.session_state["user"]
             st.query_params.pop("user", None)
