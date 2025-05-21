@@ -1,4 +1,4 @@
-# auth.py – minimalistisches, stabiles Login/Registrierung
+# auth.py – minimalistisches, stabiles Login/Registrierung + Team-Spalte
 import streamlit as st
 import sqlite3
 import os
@@ -15,7 +15,8 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
-            password TEXT
+            password TEXT,
+            team     TEXT DEFAULT ''
         )
         """
     )
@@ -75,9 +76,8 @@ def auth_page():
     else:  # Einloggen
         if st.button("Einloggen"):
             if login_user(username, password):
-                st.session_state["user"] = username               # in Session
-                st.query_params["user"] = username                # in URL
+                st.session_state["user"] = username
+                st.query_params["user"] = username
                 st.rerun()
-
             else:
                 st.error("Login fehlgeschlagen.")
