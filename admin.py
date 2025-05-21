@@ -26,38 +26,29 @@ def init_tables():
 def import_excel():
     df = pd.read_excel(EXCEL_FILE)
 
-    # Spaltennamen auf sichere SQL-Namen trimmen
-    df.columns = [c.strip().lower()
-                    .replace(" ", "_")
-                    .replace("€", "euro")
-                    .replace("%", "prozent")
-                  for c in df.columns]
-
     # Laufende Nummer als id (1-basiert)
-    df.insert(0, "id", range(1, len(df) + 1))
+    if "Nr" in df.columns:
+        df.rename(columns={"Nr": "id"}, inplace=True)
+    else:
+        df.insert(0, "id", range(1, len(df) + 1))
 
-    # Liste erlaubter Spalten in stations
-    allowed = {"id", "name", "weinname", "bild", "jahrgang",
-               "herkunftsland", "rebsorte", "preis_euro",
-               "alkohol_prozent"}
+    # Einheitliche Spaltennamen → Leerzeichen raus, Sonderzeichen zu _
+    df.columns = [
+        c.strip().lower()
+         .replace(" ", "_")
+         .replace("€", "euro")
+         .replace("%", "prozent")
+        for c in df.columns
+    ]
 
-    # Fehlende erlaubte Spalten ergänzen (leerer String)
-    for col in allowed - set(df.columns):
-        df[col] = ""
-
-    # Nur erlaubte Spalten behalten
-    df = df[[c for c in df.columns if c in allowed]]
-
-    # Umbenennen: weinname → name  (DB-Spalte)
-    if "weinname" in df.columns:
-        df.rename(columns={"weinname": "name"}, inplace=True)
+    # Spalte 'revealed' anhängen (0 = verdeckt)
+    df["revealed"] = 0
 
     conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM stations")
-    df["revealed"] = 0             # neue Spalte
-
-    df.to_sql("stations", conn, if_exists="append", index=False)
+    conn.execute("DROP TABLE IF EXISTS stations")   # alte Tabelle komplett verwerfen
+    df.to_sql("stations", conn, index=False)        # pandas legt passende Tabelle an
     conn.close()
+
 
 def get_stations():
     conn = sqlite3.connect(DB_NAME)
