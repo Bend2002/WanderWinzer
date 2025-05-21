@@ -1,10 +1,7 @@
-# station.py – Bewertungsformular mit festen Wein‑Infos
-import streamlit as st
-import sqlite3, os
+# station.py  – Voting & Ergebnis-Anzeige
+import streamlit as st, sqlite3, os
 
-DB_NAME = os.path.join(os.getcwd(), "wander.db")
-
-# ───── Feste Stationsliste (aus Excel zusammengefasst) ─────
+DB = os.path.join(os.getcwd(), "wander.db")
 STATIONS = [
    
    {"id": 1,  "name": "Lenotti Custoza", "jahrgang": 2023, "herkunft":"Italien", "rebsorte": "Garganega / Trebbiano / Cortese (Cuvée)", "farbe": "Weiß", "preis": 6.95, "alkohol": 12.0, "koerper": "Federleicht", "saeure": "Frisch", "geschmack": "Apfel, Melone, Limette, Mineral", "abgang": "", "food_pairing": "Meeresfrüchte, Pasta, gereifter Käse, Weißfisch", "bild":""},
@@ -21,61 +18,98 @@ STATIONS = [
 
 ]
 
-# ────────────────────────────────────────────────────────────
-# DB & Helper
+# ---------- DB-Helper ----------
+def _conn():
+    return sqlite3.connect(DB, check_same_thread=False)
 
-def get_current_station_id() -> int:
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value INTEGER)")
-    row = conn.execute("SELECT value FROM app_state WHERE key = 'current_station'").fetchone()
-    conn.close()
-    return row[0] if row else 0
+def get_app_state():
+    with _conn() as c:
+        c.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT)")
+        rows = c.execute("SELECT key,value FROM app_state").fetchall()
+    return {k: (int(v) if v.isnumeric() else v) for k,v in rows}
 
-def save_rating(user, sid, data):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS ratings (
-            user TEXT,
-            station_id INTEGER,
-            geschmack INTEGER,
-            alkohol REAL,
-            preis REAL,
-            kommentar TEXT,
-            PRIMARY KEY (user, station_id)
-        )
-        """
-    )
-    conn.execute(
-        "INSERT OR REPLACE INTO ratings (user, station_id, geschmack, alkohol, preis, kommentar) VALUES (?,?,?,?,?,?)",
-        (user, sid, *data)
-    )
-    conn.commit(); conn.close()
+def set_app_state(**kwargs):
+    with _conn() as c:
+        for k,v in kwargs.items():
+            c.execute("INSERT OR REPLACE INTO app_state (key,value) VALUES (?,?)", (k,str(v)))
+        c.commit()
 
-# ────────────────────────────────────────────────────────────
-# Streamlit Seite
+def save_rating(user, sid, geschmack, alk, preis, note):
+    with _conn() as c:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS ratings (
+              user TEXT, station_id INTEGER,
+              geschmack INTEGER, alkohol REAL, preis REAL, kommentar TEXT,
+              PRIMARY KEY (user, station_id)
+        )""")
+        c.execute("""
+            INSERT OR REPLACE INTO ratings
+            VALUES (?,?,?,?,?,?)
+        """, (user, sid, geschmack, alk, preis, note))
+        c.commit()
 
+def get_my_rating(user, sid):
+    with _conn() as c:
+        row = c.execute("""
+            SELECT geschmack,alkohol,preis,kommentar
+            FROM ratings WHERE user=? AND station_id=?""",
+            (user,sid)).fetchone()
+    return row
+
+# ---------- Page ----------
 def station_page():
-    user = st.session_state["user"]
-    sid = get_current_station_id()
+    user   = st.session_state["user"]
+    state  = get_app_state()
+    mode   = state.get("mode", "idle")
+    sid    = state.get("current_station", 0)
 
     if sid == 0:
         st.info("Noch keine Station freigegeben.")
         return
 
-    station = next(s for s in STATIONS if s["id"] == sid)
-    st.header(f"🍷 Station {sid}: {station['name']}")
+    wine = next(w for w in STATIONS if w["id"] == sid)
 
-    # Bewertung
-    geschmack = st.slider("Geschmack (0 = Plörre, 10 = Göttlich)", 0, 10, 5)
-    alkohol   = st.slider("Alkohol %", 8.0, 16.0, 12.0, step=0.1)
-    preis     = st.number_input("Preis-Schätzung €", 0.0, 100.0, step=0.5)
-    kommentar = st.text_area("Freitext")
+    st.header(f"🍷 Station {sid}: {wine['name']}")
 
-    if st.button("Bewertung speichern"):
-        save_rating(user, sid, (geschmack, alkohol, preis, kommentar))
-        st.success("Bewertung gespeichert!")
+    # ── Voting-Modus ───────────────────────────
+    if mode == "vote":
+        st.subheader("Deine Blind-Bewertung")
 
-    # Debug: Infos anzeigen (nur admin)
-    if st.checkbox("Wein-Details anzeigen (Admin)"):
-        st.write(station)
+        geschmack = st.slider("Geschmack (0 = Plörre, 10 = Göttlich)", 0,10,5)
+        alk       = st.slider("Alkohol %", 8.0,16.0,12.0,step=0.1)
+        preis     = st.number_input("Preis-Schätzung €", 0.0,100.0,step=0.5)
+        note      = st.text_area("Kommentar")
+
+        if st.button("Speichern"):
+            save_rating(user,sid,geschmack,alk,preis,note)
+            st.success("Danke, Bewertung gespeichert!")
+
+    # ── Reveal-Modus ───────────────────────────
+    elif mode == "reveal":
+        my = get_my_rating(user,sid)
+        if not my:
+            st.warning("Du hast für diese Station noch nicht bewertet.")
+            return
+
+        st.subheader("🔍 Auflösung")
+
+        col1,col2 = st.columns(2)
+        with col1:
+            st.write("**Echter Wein**")
+            st.write(f"• Jahrgang: {wine['jahrgang']}")
+            st.write(f"• Herkunft: {wine['herkunft']}")
+            st.write(f"• Farbe: {wine['farbe']}")
+            st.write(f"• Alkohol: {wine['alkohol']} %")
+            st.write(f"• Preis: {wine['preis']} €")
+        with col2:
+            st.write("**Dein Tipp**")
+            st.write(f"• Alkohol: {my[1]} % → Δ {abs(my[1]-wine['alkohol']):.1f}")
+            st.write(f"• Preis:   {my[2]} € → Δ {abs(my[2]-wine['preis']):.2f}")
+            st.write(f"• Geschmack-Score: {my[0]}/10")
+            st.write("• Kommentar:") 
+            st.write(my[3] or "–")
+
+        st.success("Vergleich oben - nächste Station wird freigegeben, sobald der Admin \"Voting starten\" klickt.")
+
+    else:
+        st.info("Bitte warte, bis der Admin das Voting startet.")
