@@ -1,34 +1,38 @@
-# admin.py – Station freigeben (feste Liste)
+# admin.py  – Station freigeben + Ergebnisse aufdecken
 import streamlit as st, sqlite3, os
-from station import STATIONS, get_current_station_id
+from station import STATIONS, get_app_state, set_app_state
 
-DB_NAME = os.path.join(os.getcwd(), "wander.db")
-
-def set_station(sid:int):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value INTEGER)"
-    )
-    conn.execute(
-        "INSERT OR REPLACE INTO app_state (key,value) VALUES ('current_station', ?)",
-        (sid,)
-    )
-    conn.commit(); conn.close()
+DB = os.path.join(os.getcwd(), "wander.db")
 
 def admin_page():
-    st.title("🛠️ Admin – Station freigeben")
+    st.title("🛠️ Admin – Ablauf steuern")
 
-    current = get_current_station_id()
-    st.write(f"Aktuell freigegeben: **{current if current else '– keine –'}**")
+    # Zeige aktuellen Zustand
+    state = get_app_state()
+    current = state.get("current_station", 0)
+    mode    = state.get("mode", "idle")
 
-    # Dropdown aller Stationen
-    sel = st.selectbox(
-        "Nächste Station wählen",
-        [f"{s['id']}: {s['name']}" for s in STATIONS]
+    st.write(f"**Aktuelle Station:** {current or '–'}  |  **Modus:** {mode}")
+
+    # Auswahl nächste Station
+    next_sel = st.selectbox(
+        "Station wählen",
+        options=[f"{s['id']}: {s['name']}" for s in STATIONS],
+        index=(current-1) if current else 0
     )
-    sid = int(sel.split(":")[0])
+    sid = int(next_sel.split(":")[0])
 
-    if st.button("✅ Freigeben"):
-        set_station(sid)
-        st.success(f"Station {sid} freigegeben.")
+    # Button: Voting starten
+    if st.button("🚦 Voting starten"):
+        set_app_state(current_station=sid, mode="vote")
+        st.success(f"Station {sid} zum Voting freigegeben.")
         st.rerun()
+
+    # Button: Aufdecken
+    if st.button("🔔 Aufdecken & Auswertung"):
+        if current == 0:
+            st.warning("Es ist noch keine Station im Voting.")
+        else:
+            set_app_state(mode="reveal")
+            st.success("Auswertung freigeschaltet.")
+            st.rerun()
