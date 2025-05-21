@@ -10,19 +10,19 @@ st.set_page_config(page_title="Weinwanderung", page_icon="🍇", layout="centere
 
 DB_NAME = os.path.join(os.getcwd(), "wander.db")
 # Sicherheits-Setup bei frischer App
-if not os.path.exists(DB_NAME):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            password TEXT,
-            team     TEXT DEFAULT ''
-        )
-        """
+conn = sqlite3.connect(DB_NAME)
+conn.execute(
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        password TEXT,
+        team     TEXT DEFAULT ''
     )
-    conn.commit()
-    conn.close()
+    """
+)
+conn.commit()
+conn.close()
+
 
 # Persistenter Login über ?user=
 if "user" not in st.session_state:
