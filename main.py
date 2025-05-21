@@ -6,6 +6,7 @@ import sqlite3
 from auth import auth_page
 from team import team_page
 from station import station_page
+from admin import admin_page
 
 st.set_page_config(page_title="Weinwanderung", page_icon="🍇", layout="centered")
 
@@ -52,7 +53,11 @@ else:
         team_page()
     else:
         st.sidebar.success(f"Eingeloggt als {st.session_state['user']}  |  Team: {team}")
-        station_page()
+
+        if team == "admin":
+            admin_page()
+        else:
+            station_page()
 
         if st.sidebar.button("Logout"):
             del st.session_state["user"]
