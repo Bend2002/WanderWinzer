@@ -50,7 +50,7 @@ if not row:
         st.rerun()
         st.stop()          # <- garantiertes Ende
  
-    # team = row[0]          # hier gibt es sicher einen Wert
+    team = row[0]          # hier gibt es sicher einen Wert
 
     if not team:
         team_page()  # Nutzer muss Team wählen / anlegen
