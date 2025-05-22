@@ -137,7 +137,7 @@ def station_page():
             if row[8]:
                 st.write(f"**Kommentar:** {row[8]}")
 
-            })
+
 
     else:
         st.info("Warte, bis der Admin das Voting startet.")
