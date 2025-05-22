@@ -43,13 +43,14 @@ else:
     row = conn.execute("SELECT team FROM users WHERE username = ?", (st.session_state["user"],)).fetchone()
     conn.close()
 
-    if not row:
-        # User existiert nicht mehr → Session reset
+   
+if not row:
         del st.session_state["user"]
         st.query_params.pop("user", None)
         st.rerun()
-
-    team = row[0]
+        st.stop()          # <- garantiertes Ende
+ 
+    team = row[0]          # hier gibt es sicher einen Wert
 
     if not team:
         team_page()  # Nutzer muss Team wählen / anlegen
