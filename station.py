@@ -1,10 +1,9 @@
-# station.py – Voting + Reveal 2.0 (Slider & Dropdowns)
+# station.py – Voting + Reveal 3.0 (klarere Felder, Aromen‑Multi‑Select)
 import streamlit as st, sqlite3, os
 
 DB = os.path.join(os.getcwd(), "wander.db")
 
-
-# Vollständige Stations­liste – nur Auswahl-Felder sind relevant für Dropdowns
+# Feste Weinliste (Kurzbeispiel – weitere Einträge analog ergänzen)
 STATIONS = [
    
    {"id": 1,  "name": "Lenotti Custoza", "jahrgang": 2023, "herkunft":"Italien", "rebsorte": "Garganega / Trebbiano / Cortese (Cuvée)", "farbe": "Weiß", "preis": 6.95, "alkohol": 12.0, "koerper": "Federleicht", "saeure": "Frisch", "geschmack": "Apfel, Melone, Limette, Mineral", "abgang": "", "food_pairing": "Meeresfrüchte, Pasta, gereifter Käse, Weißfisch", "bild":""},
@@ -18,52 +17,54 @@ STATIONS = [
     {"id": 9,  "name": "Château La Genestière Côtes du Rhône blanc", "jahrgang": 2022, "herkunft":"Frankreich", "rebsorte": "Grenache Blanc / Viognier / Clairette (Cuvée)", "farbe": "Weiß", "preis": 6.95, "alkohol": 13.5, "koerper": "Mittel", "saeure": "Moderat", "geschmack": "Steinobst, weiße Blüten, Honig", "abgang": "Mittel", "food_pairing": "Geflügel, Quiche", "bild":""},
     {"id": 10,  "name": "Vino Blanco de España (Bag-in-Box)", "jahrgang": 2022, "herkunft":"Spanien", "rebsorte": "Blend (Airén / Macabeo, o. ä.)", "farbe": "Weiß", "preis": 1.25, "alkohol": None, "koerper": "Leicht", "saeure": "Mäßig", "geschmack": "Zitrus, Apfel", "abgang": "Kurz", "food_pairing": "Partybowle, Tapas", "bild":""}
 
+
+
 ]
 
-# → Dropdown-Optionen automatisch aus den Weindaten ableiten
-LÄNDER  = sorted({w["herkunft"]  for w in STATIONS})
-REBSORT = sorted({w["rebsorte"]  for w in STATIONS})
-AROMEN  = sorted({w["geschmack"] for w in STATIONS})
+# Dropdown‑Listen automatisch generieren
+LÄNDER  = sorted({w["herkunft"] for w in STATIONS})
+REBSORT = sorted({w["rebsorte"] for w in STATIONS})
+AROMEN  = sorted({a.strip() for w in STATIONS for a in w["aromen"].split(",")})
 
-# Ländercode zu Flagge (ISO‑Land → Emoji, simple Map)
-FLAG = {
-    "Deutschland": "🇩🇪", "Frankreich": "🇫🇷", "Italien": "🇮🇹", "Spanien": "🇪🇸",
-    "Portugal": "🇵🇹",    "Niederlande": "🇳🇱",  "Chile": "🇨🇱"
-}
+FLAG = {"Deutschland":"🇩🇪","Frankreich":"🇫🇷","Italien":"🇮🇹","Spanien":"🇪🇸","Portugal":"🇵🇹","Niederlande":"🇳🇱","Chile":"🇨🇱"}
 
-# ------------------------ DB‑Helper
+# -------------------- DB‑Helper --------------------
 
 def _conn():
     return sqlite3.connect(DB, check_same_thread=False)
 
+# global app_state key/value
+
 def get_state():
     with _conn() as c:
         c.execute("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT)")
-        return {k: (int(v) if v.isdigit() else v) for k,v in c.execute("SELECT key,value FROM app_state")}
+        return {k: (int(v) if str(v).isdigit() else v) for k,v in c.execute("SELECT key,value FROM app_state")}
 
 def set_state(**kw):
     with _conn() as c:
-        for k, v in kw.items():
-            c.execute("INSERT OR REPLACE INTO app_state VALUES (?,?)", (k, str(v)))
+        for k,v in kw.items():
+            c.execute("INSERT OR REPLACE INTO app_state VALUES (?,?)", (k,str(v)))
         c.commit()
 
-# ▶️ Alias für Admin-Kompatibilität
-get_app_state = get_state
-set_app_state = set_state
+# ratings‑Table (nur Felder, die wir wirklich auswerten)
 
-# Ratings
-
-def save_rating(u,sid,g,a,p,l,r,f,k,s,ab,c,note):
+def save_rating(user,sid,geschmack,alk,preis,land,rebsorte,aromen_str,comment):
     with _conn() as c:
-        c.execute("""CREATE TABLE IF NOT EXISTS ratings (user TEXT, station_id INT, geschmack INT, alkohol REAL, preis REAL, land TEXT, rebsorte TEXT, farbe TEXT, körper INT, säure INT, abgang INT, kommentar TEXT, PRIMARY KEY(user,station_id))""")
-        c.execute("INSERT OR REPLACE INTO ratings VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (u,sid,g,a,p,l,r,f,k,s,ab,note))
+        c.execute("""CREATE TABLE IF NOT EXISTS ratings (
+            user TEXT, station_id INT,
+            geschmack INT, alkohol REAL, preis REAL,
+            land TEXT, rebsorte TEXT, aromen TEXT,
+            kommentar TEXT,
+            PRIMARY KEY(user,station_id))""")
+        c.execute("INSERT OR REPLACE INTO ratings VALUES (?,?,?,?,?,?,?,?,?)",
+                  (user,sid,geschmack,alk,preis,land,rebsorte,aromen_str,comment))
         c.commit()
 
-def my_rating(u,sid):
+def get_rating(user,sid):
     with _conn() as c:
-        return c.execute("SELECT * FROM ratings WHERE user=? AND station_id=?",(u,sid)).fetchone()
+        return c.execute("SELECT * FROM ratings WHERE user=? AND station_id=?",(user,sid)).fetchone()
 
-# ------------------------ Seite
+# -------------------- Page ------------------------
 
 def station_page():
     user  = st.session_state["user"]
@@ -77,48 +78,48 @@ def station_page():
 
     wine = next(w for w in STATIONS if w["id"]==sid)
 
-    # Anzeige: Nummer statt Name im Voting
-    if mode=="vote":
-        st.header(f"🍷 Station {sid}")
-    else:
-        st.header(f"🍷 Station {sid}: {wine['name']}")
+    # Nummer statt Name, bis Reveal
+    st.header(f"🍷 Station {sid}" + ("" if mode=="vote" else f": {wine['name']}"))
 
-    # ----- Voting -----
-    if mode=="vote":
-        # Geschmacksskala bleibt Slider 0‑10
-        g = st.slider("Geschmack (0 = Plörre, 10 = Göttlich)",0,10,5)
-        a = st.slider("Alkohol %  (0 = Autofahren kein Problem … 16 = Tütülülüü)",0.0,16.0,12.0,step=0.1)
-        p = st.slider("Preis‑Schätzung €",0.0,35.0,10.0,step=0.5)
-        l = st.selectbox("Land", [f"{FLAG.get(x,'')} {x}" for x in LÄNDER])
-        r = st.selectbox("Rebsorte", REBSORT)
-        f = st.selectbox("Farbe", ["Weiß","Rosé","Rot"])
-        k = st.slider("Körper",0,10,5)
-        s = st.slider("Säure",0,10,5)
-        ab= st.slider("Abgang",0,10,5)
-        note = st.text_area("Kommentar")
-        if st.button("Speichern"):
-            save_rating(user,sid,g,a,p,l.strip()[2:],r,f,k,s,ab,note)
+    # -------- Voting --------
+    if mode == "vote":
+        g  = st.slider("Geschmack (0 Plörre – 10 Göttlich)",0,10,5)
+        alk= st.slider("Alkohol % – 0 = Autofahren kein Problem … 16 = Tütülülüü",0.0,16.0,12.0,step=0.1)
+        preis = st.slider("Preis‑Schätzung (€)",0.0,35.0,10.0,step=0.5)
+        land_opt = [f"{FLAG.get(x,'')} {x}" for x in LÄNDER]
+        land_sel = st.selectbox("Land", land_opt)
+        reb_sel  = st.selectbox("Rebsorte", REBSORT)
+        aro_sel  = st.multiselect("Aromen (mehrfach)", AROMEN)
+        note     = st.text_area("Kommentar")
+
+        if st.button("Bewertung speichern"):
+            # strip Flag Emoji -> Text nach Leerzeichen
+            land_clean = land_sel.split(" ",1)[-1]
+            save_rating(user,sid,g,alk,preis,land_clean,reb_sel,", ".join(aro_sel),note)
             st.success("Gespeichert!")
 
-    # ----- Reveal -----
-    elif mode=="reveal":
-        row = my_rating(user,sid)
+    # -------- Reveal --------
+    elif mode == "reveal":
+        row = get_rating(user,sid)
         if not row:
-            st.warning("Du hast nicht bewertet.")
+            st.warning("Du hast für diese Station nicht bewertet.")
             return
+
         st.subheader("Auflösung")
-        col1,col2= st.columns(2)
+        col1,col2 = st.columns(2)
         with col1:
-            st.write("**Weinfakten**")
-            st.write(wine)
+            st.markdown("**Echter Wein**")
+            st.write({k:v for k,v in wine.items() if k not in {"id"}})
         with col2:
-            st.write("**Dein Tipp**")
+            st.markdown("**Dein Tipp**")
             st.write({
                 "geschmack": row[2],
                 "alkohol":   row[3],
                 "preis":     row[4],
                 "land":      row[5],
-                "rebsorte":  row[6]
+                "rebsorte":  row[6],
+                "aromen":    row[7]
             })
+
     else:
-        st.info("Warte auf Voting‑Start durch Admin.")
+        st.info("Warte, bis der Admin das Voting startet.")
