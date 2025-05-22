@@ -1,8 +1,8 @@
-
 # station.py – Voting + Reveal 2.0 (Slider & Dropdowns)
 import streamlit as st, sqlite3, os
 
 DB = os.path.join(os.getcwd(), "wander.db")
+
 
 # Vollständige Stations­liste – nur Auswahl-Felder sind relevant für Dropdowns
 STATIONS = [
@@ -18,8 +18,6 @@ STATIONS = [
     {"id": 9,  "name": "Château La Genestière Côtes du Rhône blanc", "jahrgang": 2022, "herkunft":"Frankreich", "rebsorte": "Grenache Blanc / Viognier / Clairette (Cuvée)", "farbe": "Weiß", "preis": 6.95, "alkohol": 13.5, "koerper": "Mittel", "saeure": "Moderat", "geschmack": "Steinobst, weiße Blüten, Honig", "abgang": "Mittel", "food_pairing": "Geflügel, Quiche", "bild":""},
     {"id": 10,  "name": "Vino Blanco de España (Bag-in-Box)", "jahrgang": 2022, "herkunft":"Spanien", "rebsorte": "Blend (Airén / Macabeo, o. ä.)", "farbe": "Weiß", "preis": 1.25, "alkohol": None, "koerper": "Leicht", "saeure": "Mäßig", "geschmack": "Zitrus, Apfel", "abgang": "Kurz", "food_pairing": "Partybowle, Tapas", "bild":""}
 
-
-   
 ]
 
 # → Dropdown-Optionen automatisch aus den Weindaten ableiten
@@ -45,9 +43,13 @@ def get_state():
 
 def set_state(**kw):
     with _conn() as c:
-        for k,v in kw.items():
-            c.execute("INSERT OR REPLACE INTO app_state VALUES (?,?)", (k,str(v)))
+        for k, v in kw.items():
+            c.execute("INSERT OR REPLACE INTO app_state VALUES (?,?)", (k, str(v)))
         c.commit()
+
+# ▶️ Alias für Admin-Kompatibilität
+get_app_state = get_state
+set_app_state = set_state
 
 # Ratings
 
