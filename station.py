@@ -98,27 +98,45 @@ def station_page():
             save_rating(user,sid,g,alk,preis,land_clean,reb_sel,", ".join(aro_sel),note)
             st.success("Gespeichert!")
 
-    # -------- Reveal --------
+    
+    # ────────── Reveal ──────────
     elif mode == "reveal":
-        row = get_rating(user,sid)
+        row = get_rating(user, sid)
         if not row:
             st.warning("Du hast für diese Station nicht bewertet.")
             return
 
-        st.subheader("Auflösung")
-        col1,col2 = st.columns(2)
+        st.subheader("🔍 Auflösung")
+
+        # Spalten-Layout
+        col1, col2 = st.columns(2, gap="large")
+
+        # ─ Echtes Ergebnis ─
         with col1:
-            st.markdown("**Echter Wein**")
-            st.write({k:v for k,v in wine.items() if k not in {"id"}})
+            st.markdown("### Echter Wein")
+            st.write(f"**Name:** {wine['name']}")
+            st.write(f"**Jahrgang:** {wine.get('jahrgang','–')}")
+            st.write(f"**Herkunft:** {wine.get('herkunft','–')}")
+            st.write(f"**Rebsorte:** {wine.get('rebsorte','–')}")
+            st.write(f"**Farbe:** {wine.get('farbe','–')}")
+            st.write(f"**Alkohol:** {wine.get('alkohol','–')} %")
+            st.write(f"**Preis:** {wine.get('preis','–')} €")
+            if wine.get("aromen"):
+                st.write(f"**Aromen:** {wine['aromen']}")
+
+        # ─ Dein Tipp ─
         with col2:
-            st.markdown("**Dein Tipp**")
-            st.write({
-                "geschmack": row[2],
-                "alkohol":   row[3],
-                "preis":     row[4],
-                "land":      row[5],
-                "rebsorte":  row[6],
-                "aromen":    row[7]
+            st.markdown("### Dein Tipp")
+            st.write(f"**Geschmacks-Score:** {row[2]} / 10")
+            st.write(f"**Alkohol getippt:** {row[3]} %  Δ {abs(row[3]-wine.get('alkohol',0)):.1f}")
+            st.write(f"**Preis getippt:** {row[4]} €  Δ {abs(row[4]-wine.get('preis',0)):.2f}")
+            st.write(f"**Land getippt:** {row[5]}")
+            st.write(f"**Rebsorte getippt:** {row[6]}")
+            if row[7]:
+                st.write(f"**Aromen getippt:** {row[7]}")
+            if row[8]:
+                st.write(f"**Kommentar:** {row[8]}")
+
             })
 
     else:
