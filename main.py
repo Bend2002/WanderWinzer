@@ -6,6 +6,7 @@ import sqlite3
 from auth import auth_page
 from station import station_page
 from admin import admin_page
+from team import team_page
 
 
 st.set_page_config(page_title="Weinwanderung", page_icon="🍇", layout="centered")
