@@ -1,12 +1,12 @@
-# main.py – Zentrale Navigation (Login → Team → Station / Admin)
+# main.py – Einstiegspunkt
 import streamlit as st
 import os
 import sqlite3
 
-from auth import auth_page          # Login / Registrierung
-from team import team_page          # Teamwahl
-from station import station_page    # Bewertung
-from admin import admin_page        # Admin-Panel
+from auth import auth_page
+from station import station_page
+from admin import admin_page
+
 
 st.set_page_config(page_title="Weinwanderung", page_icon="🍇", layout="centered")
 
