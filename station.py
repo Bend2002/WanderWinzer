@@ -24,7 +24,7 @@ STATIONS = [
 # Dropdown‑Listen automatisch generieren
 LÄNDER  = sorted({w["herkunft"] for w in STATIONS})
 REBSORT = sorted({w["rebsorte"] for w in STATIONS})
-AROMEN  = sorted({a.strip() for w in STATIONS for a in w["aromen"].split(",")})
+AROMEN  = sorted({a.strip() for w in STATIONS for a in w.get("aromen", "").split(",") if a.strip()})
 
 FLAG = {"Deutschland":"🇩🇪","Frankreich":"🇫🇷","Italien":"🇮🇹","Spanien":"🇪🇸","Portugal":"🇵🇹","Niederlande":"🇳🇱","Chile":"🇨🇱"}
 
@@ -123,3 +123,4 @@ def station_page():
 
     else:
         st.info("Warte, bis der Admin das Voting startet.")
+
